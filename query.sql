@@ -15,6 +15,17 @@ USE CURESA
 GO
 
 -- Crear esquemas si no existen
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'func')
+BEGIN
+    EXEC('CREATE SCHEMA func;');
+    PRINT 'El esquema func ha sido creado.';
+END
+ELSE
+BEGIN
+    PRINT 'El esquema func ya existe.';
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'pte')
 BEGIN
     EXEC('CREATE SCHEMA pte;');
@@ -336,9 +347,7 @@ SELECT * FROM turno.Reserva;
 
 -- Procedimientos Almacenados para la tabla pte.Cobertura
 
-IF OBJECT_ID('InsertCobertura', 'P') IS NOT NULL DROP PROCEDURE InsertCobertura;
-GO
-CREATE PROCEDURE InsertCobertura
+CREATE OR ALTER PROCEDURE pte.InsertCobertura
     @ImagenCredencial VARBINARY(MAX),
     @NroSocio VARCHAR(50),
     @FechaRegistro DATE,
@@ -350,9 +359,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateCobertura', 'P') IS NOT NULL DROP PROCEDURE UpdateCobertura;
-GO
-CREATE PROCEDURE UpdateCobertura
+
+CREATE OR ALTER PROCEDURE pte.UpdateCobertura
     @ID INT,
     @ImagenCredencial VARBINARY(MAX),
     @NroSocio VARCHAR(50),
@@ -369,9 +377,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteCobertura', 'P') IS NOT NULL DROP PROCEDURE DeleteCobertura;
-GO
-CREATE PROCEDURE DeleteCobertura
+
+CREATE OR ALTER PROCEDURE pte.DeleteCobertura
     @ID INT
 AS
 BEGIN
@@ -382,9 +389,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla pte.Prestador
 
-IF OBJECT_ID('InsertPrestador', 'P') IS NOT NULL DROP PROCEDURE InsertPrestador;
-GO
-CREATE PROCEDURE InsertPrestador
+
+CREATE OR ALTER PROCEDURE pte.InsertPrestador
     @Nombre VARCHAR(50),
     @PlanPrestador VARCHAR(50)
 AS
@@ -394,9 +400,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdatePrestador', 'P') IS NOT NULL DROP PROCEDURE UpdatePrestador;
-GO
-CREATE PROCEDURE UpdatePrestador
+
+CREATE OR ALTER PROCEDURE pte.UpdatePrestador
     @ID INT,
     @Nombre VARCHAR(50),
     @PlanPrestador VARCHAR(50)
@@ -409,9 +414,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeletePrestador', 'P') IS NOT NULL DROP PROCEDURE DeletePrestador;
-GO
-CREATE PROCEDURE DeletePrestador
+
+CREATE OR ALTER PROCEDURE pte.DeletePrestador
     @ID INT
 AS
 BEGIN
@@ -422,9 +426,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla pte.Domicilio
 
-IF OBJECT_ID('InsertDomicilio', 'P') IS NOT NULL DROP PROCEDURE InsertDomicilio;
-GO
-CREATE PROCEDURE InsertDomicilio
+
+CREATE OR ALTER PROCEDURE pte.InsertDomicilio
     @Calle VARCHAR(100),
     @Numero VARCHAR(10),
     @Piso VARCHAR(10),
@@ -440,9 +443,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateDomicilio', 'P') IS NOT NULL DROP PROCEDURE UpdateDomicilio;
-GO
-CREATE PROCEDURE UpdateDomicilio
+
+CREATE OR ALTER PROCEDURE pte.UpdateDomicilio
     @ID INT,
     @Calle VARCHAR(100),
     @Numero VARCHAR(10),
@@ -467,9 +469,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteDomicilio', 'P') IS NOT NULL DROP PROCEDURE DeleteDomicilio;
-GO
-CREATE PROCEDURE DeleteDomicilio
+
+CREATE OR ALTER PROCEDURE pte.DeleteDomicilio
     @ID INT
 AS
 BEGIN
@@ -480,9 +481,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla pte.Usuario
 
-IF OBJECT_ID('InsertUsuario', 'P') IS NOT NULL DROP PROCEDURE InsertUsuario;
-GO
-CREATE PROCEDURE InsertUsuario
+
+CREATE OR ALTER PROCEDURE pte.InsertUsuario
     @Contraseña VARCHAR(50),
     @FechaCreacion DATE
 AS
@@ -492,9 +492,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateUsuario', 'P') IS NOT NULL DROP PROCEDURE UpdateUsuario;
-GO
-CREATE PROCEDURE UpdateUsuario
+
+CREATE OR ALTER PROCEDURE pte.UpdateUsuario
     @ID INT,
     @Contraseña VARCHAR(50),
     @FechaCreacion DATE
@@ -507,9 +506,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteUsuario', 'P') IS NOT NULL DROP PROCEDURE DeleteUsuario;
-GO
-CREATE PROCEDURE DeleteUsuario
+
+CREATE OR ALTER PROCEDURE pte.DeleteUsuario
     @ID INT
 AS
 BEGIN
@@ -520,10 +518,7 @@ GO
 
 -- Procedimientos Almacenados para la tabla pte.Estudio
 
-IF OBJECT_ID('InsertEstudio', 'P') IS NOT NULL
-DROP PROCEDURE InsertEstudio;
-GO
-CREATE PROCEDURE InsertEstudio
+CREATE OR ALTER PROCEDURE pte.InsertEstudio
     @Fecha DATE,
     @NombreEstudio VARCHAR(100),
     @EstaAutorizado BIT,
@@ -536,9 +531,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateEstudio', 'P') IS NOT NULL DROP PROCEDURE UpdateEstudio;
-GO
-CREATE PROCEDURE UpdateEstudio
+
+CREATE OR ALTER PROCEDURE pte.UpdateEstudio
     @ID INT,
     @Fecha DATE,
     @NombreEstudio VARCHAR(100),
@@ -557,9 +551,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteEstudio', 'P') IS NOT NULL DROP PROCEDURE DeleteEstudio;
-GO
-CREATE PROCEDURE DeleteEstudio
+
+CREATE OR ALTER PROCEDURE pte.DeleteEstudio
     @ID INT
 AS
 BEGIN
@@ -570,9 +563,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla pte.Paciente
 
-IF OBJECT_ID('InsertPaciente', 'P') IS NOT NULL DROP PROCEDURE InsertPaciente;
-GO
-CREATE PROCEDURE InsertPaciente
+
+CREATE OR ALTER PROCEDURE pte.InsertPaciente
     @Nombre VARCHAR(50),
     @Apellido VARCHAR(50),
     @ApellidoMaterno VARCHAR(50),
@@ -600,9 +592,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdatePaciente', 'P') IS NOT NULL DROP PROCEDURE UpdatePaciente;
-GO
-CREATE PROCEDURE UpdatePaciente
+
+CREATE OR ALTER PROCEDURE pte.UpdatePaciente
     @ID INT,
     @Nombre VARCHAR(50),
     @Apellido VARCHAR(50),
@@ -651,9 +642,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeletePaciente', 'P') IS NOT NULL DROP PROCEDURE DeletePaciente;
-GO
-CREATE PROCEDURE DeletePaciente
+
+CREATE OR ALTER PROCEDURE pte.DeletePaciente
     @ID INT
 AS
 BEGIN
@@ -664,9 +654,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla med.Especialidad
 
-IF OBJECT_ID('InsertEspecialidad', 'P') IS NOT NULL DROP PROCEDURE InsertEspecialidad;
-GO
-CREATE PROCEDURE InsertEspecialidad
+
+CREATE OR ALTER PROCEDURE med.InsertEspecialidad
     @Nombre VARCHAR(50)
 AS
 BEGIN
@@ -675,9 +664,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateEspecialidad', 'P') IS NOT NULL DROP PROCEDURE UpdateEspecialidad;
-GO
-CREATE PROCEDURE UpdateEspecialidad
+
+CREATE OR ALTER PROCEDURE med.UpdateEspecialidad
     @ID INT,
     @Nombre VARCHAR(50)
 AS
@@ -688,9 +676,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteEspecialidad', 'P') IS NOT NULL DROP PROCEDURE DeleteEspecialidad;
-GO
-CREATE PROCEDURE DeleteEspecialidad
+
+CREATE OR ALTER PROCEDURE med.DeleteEspecialidad
     @ID INT
 AS
 BEGIN
@@ -701,9 +688,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla med.Medico
 
-IF OBJECT_ID('InsertMedico', 'P') IS NOT NULL DROP PROCEDURE InsertMedico;
-GO
-CREATE PROCEDURE InsertMedico
+
+CREATE OR ALTER PROCEDURE med.InsertMedico
     @Nombre VARCHAR(50),
     @Apellido VARCHAR(50),
     @NroMatricula VARCHAR(20),
@@ -715,9 +701,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateMedico', 'P') IS NOT NULL DROP PROCEDURE UpdateMedico;
-GO
-CREATE PROCEDURE UpdateMedico
+
+CREATE OR ALTER PROCEDURE med.UpdateMedico
     @ID INT,
     @Nombre VARCHAR
 (50),
@@ -735,9 +720,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteMedico', 'P') IS NOT NULL DROP PROCEDURE DeleteMedico;
-GO
-CREATE PROCEDURE DeleteMedico
+
+CREATE OR ALTER PROCEDURE med.DeleteMedico
     @ID INT
 AS
 BEGIN
@@ -748,9 +732,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla turno.TipoTurno
 
-IF OBJECT_ID('InsertTipoTurno', 'P') IS NOT NULL DROP PROCEDURE InsertTipoTurno;
-GO
-CREATE PROCEDURE InsertTipoTurno
+
+CREATE OR ALTER PROCEDURE turno.InsertTipoTurno
     @Nombre VARCHAR(50)
 AS
 BEGIN
@@ -759,9 +742,7 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateTipoTurno', 'P') IS NOT NULL DROP PROCEDURE UpdateTipoTurno;
-GO
-CREATE PROCEDURE UpdateTipoTurno
+CREATE OR ALTER PROCEDURE turno.UpdateTipoTurno
     @ID INT,
     @Nombre VARCHAR(50)
 AS
@@ -772,9 +753,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteTipoTurno', 'P') IS NOT NULL DROP PROCEDURE DeleteTipoTurno;
-GO
-CREATE PROCEDURE DeleteTipoTurno
+
+CREATE OR ALTER PROCEDURE turno.DeleteTipoTurno
     @ID INT
 AS
 BEGIN
@@ -785,9 +765,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla turno.estadoTurno
 
-IF OBJECT_ID('InsertEstadoTurno', 'P') IS NOT NULL DROP PROCEDURE InsertEstadoTurno;
-GO
-CREATE PROCEDURE InsertEstadoTurno
+
+CREATE OR ALTER PROCEDURE turno.InsertEstadoTurno
     @nombreEstado VARCHAR(50)
 AS
 BEGIN
@@ -796,9 +775,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateEstadoTurno', 'P') IS NOT NULL DROP PROCEDURE UpdateEstadoTurno;
-GO
-CREATE PROCEDURE UpdateEstadoTurno
+
+CREATE OR ALTER PROCEDURE turno.UpdateEstadoTurno
     @ID INT,
     @nombreEstado VARCHAR(50)
 AS
@@ -809,9 +787,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteEstadoTurno', 'P') IS NOT NULL DROP PROCEDURE DeleteEstadoTurno;
-GO
-CREATE PROCEDURE DeleteEstadoTurno
+
+CREATE OR ALTER PROCEDURE turno.DeleteEstadoTurno
     @ID INT
 AS
 BEGIN
@@ -822,9 +799,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla sede.sede
 
-IF OBJECT_ID('InsertSede', 'P') IS NOT NULL DROP PROCEDURE InsertSede;
-GO
-CREATE PROCEDURE InsertSede
+
+CREATE OR ALTER PROCEDURE sede.InsertSede
     @nombre VARCHAR(50),
     @direccion VARCHAR(255)
 AS
@@ -834,9 +810,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateSede', 'P') IS NOT NULL DROP PROCEDURE UpdateSede;
-GO
-CREATE PROCEDURE UpdateSede
+
+CREATE OR ALTER PROCEDURE sede.UpdateSede
     @ID INT,
     @nombre VARCHAR(50),
     @direccion VARCHAR(255)
@@ -849,9 +824,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteSede', 'P') IS NOT NULL DROP PROCEDURE DeleteSede;
-GO
-CREATE PROCEDURE DeleteSede
+
+CREATE OR ALTER PROCEDURE sede.DeleteSede
     @ID INT
 AS
 BEGIN
@@ -862,9 +836,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla sede.diaSede
 
-IF OBJECT_ID('InsertDiaSede', 'P') IS NOT NULL DROP PROCEDURE InsertDiaSede;
-GO
-CREATE PROCEDURE InsertDiaSede
+
+CREATE OR ALTER PROCEDURE sede.InsertDiaSede
     @dia DATE,
     @horaInicio TIME,
     @IdSede INT,
@@ -876,9 +849,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateDiaSede', 'P') IS NOT NULL DROP PROCEDURE UpdateDiaSede;
-GO
-CREATE PROCEDURE UpdateDiaSede
+
+CREATE OR ALTER PROCEDURE sede.UpdateDiaSede
     @ID INT,
     @dia DATE,
     @horaInicio TIME,
@@ -895,9 +867,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteDiaSede', 'P') IS NOT NULL DROP PROCEDURE DeleteDiaSede;
-GO
-CREATE PROCEDURE DeleteDiaSede
+
+CREATE OR ALTER PROCEDURE sede.DeleteDiaSede
     @ID INT
 AS
 BEGIN
@@ -908,9 +879,8 @@ GO
 
 -- Procedimientos Almacenados para la tabla turno.Reserva
 
-IF OBJECT_ID('InsertReserva', 'P') IS NOT NULL DROP PROCEDURE InsertReserva;
-GO
-CREATE PROCEDURE InsertReserva
+
+CREATE OR ALTER PROCEDURE turno.InsertReserva
     @fecha DATE,
     @hora TIME,
     @IdMedico INT,
@@ -925,9 +895,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('UpdateReserva', 'P') IS NOT NULL DROP PROCEDURE UpdateReserva;
-GO
-CREATE PROCEDURE UpdateReserva
+
+CREATE OR ALTER PROCEDURE turno.UpdateReserva
     @ID INT,
     @fecha DATE,
     @hora TIME,
@@ -950,9 +919,8 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('DeleteReserva', 'P') IS NOT NULL DROP PROCEDURE DeleteReserva;
-GO
-CREATE PROCEDURE DeleteReserva
+
+CREATE OR ALTER PROCEDURE turno.DeleteReserva
     @ID INT
 AS
 BEGIN
@@ -960,3 +928,57 @@ BEGIN
     WHERE ID = @ID;
 END
 GO
+
+--FUNCIONES
+CREATE FUNCTION func.get_apellido_despues_de_punto(@str VARCHAR(255))
+RETURNS VARCHAR(255) AS
+BEGIN
+    RETURN LTRIM(SUBSTRING(@str, CHARINDEX('.', @str) + 1, LEN(@str)))
+END
+GO
+
+
+
+--CARGAR CSV DE MEDICOS
+CREATE OR ALTER PROCEDURE med.ImportarMedicos @PATH VARCHAR(MAX) AS
+BEGIN
+	SET NOCOUNT ON;
+	CREATE TABLE #CSV_AUX (
+		NOMBRE VARCHAR(50),
+		APELLIDOS VARCHAR(50), --SE MANEJAN CRUZADAS YA QUE EL CSV TIENE LAS COLUMNAS INVERTIDAS (EN APELLIDO TIENE NOMBRE Y EN NOMBRE APELLIDO).
+		ESPECIALIDAD VARCHAR(50),
+		NRO_COLEG VARCHAR(50)
+	);
+
+	DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = ''' + ';' + ''', ROWTERMINATOR = ''' + '\n' + ''', FIRSTROW = 2, CODEPAGE = ''' + '65001' + ''')';
+	
+	EXEC (@SQL);
+
+	SELECT ESPECIALIDAD
+	INTO #ESP_AUX
+	FROM #CSV_AUX;
+
+	SELECT *
+	INTO #CSV_AUX2
+	FROM #CSV_AUX A
+	WHERE NOT EXISTS (SELECT 1 FROM sede.Sede M INNER JOIN med.Especialidad E ON E.ID = M.ID WHERE LTRIM(A.APELLIDOS) = M.NOMBRE AND func.get_apellido_despues_de_punto(A.NOMBRE) = M.Nombre AND E.Nombre = A.ESPECIALIDAD);
+
+	SELECT * FROM #CSV_AUX2;
+
+	INSERT INTO med.Especialidad(NOMBRE)
+	SELECT DISTINCT ESPECIALIDAD
+	FROM #ESP_AUX AUX
+	WHERE NOT EXISTS (SELECT 1 FROM med.Especialidad ES WHERE ES.NOMBRE = AUX.ESPECIALIDAD);
+
+	INSERT INTO med.Medico(NOMBRE, APELLIDO, NroMatricula, IdEspecialidad) --COMO EN EL CSV EN APELLIDO PONEMOS EL NOMBRE ACA LO INVERTIMOS
+	SELECT LTRIM(A.APELLIDOS), func.get_apellido_despues_de_punto(A.NOMBRE), A.NRO_COLEG, E.ID
+	FROM #CSV_AUX2 A INNER JOIN med.Especialidad E ON A.ESPECIALIDAD = E.NOMBRE;
+END
+GO
+
+exec med.ImportarMedicos 'E:\PruebaSQL\Medicos.csv' 
+GO
+
+select * from med.Medico ORDER BY Nombre
+select * from med.Especialidad
+
