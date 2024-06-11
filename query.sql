@@ -940,44 +940,57 @@ GO
 
 
 --CARGAR CSV DE MEDICOS
-CREATE OR ALTER PROCEDURE med.ImportarMedicos @PATH VARCHAR(MAX) AS
+CREATE OR ALTER PROCEDURE med.ImportarMedicos 
+    @PATH VARCHAR(MAX) 
+AS
 BEGIN
-	SET NOCOUNT ON;
-	CREATE TABLE #CSV_AUX (
-		NOMBRE VARCHAR(50),
-		APELLIDOS VARCHAR(50), --SE MANEJAN CRUZADAS YA QUE EL CSV TIENE LAS COLUMNAS INVERTIDAS (EN APELLIDO TIENE NOMBRE Y EN NOMBRE APELLIDO).
-		ESPECIALIDAD VARCHAR(50),
-		NRO_COLEG VARCHAR(50)
-	);
+    SET NOCOUNT ON;
 
-	DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = ''' + ';' + ''', ROWTERMINATOR = ''' + '\n' + ''', FIRSTROW = 2, CODEPAGE = ''' + '65001' + ''')';
-	
-	EXEC (@SQL);
+    -- Crear una tabla temporal para almacenar los datos del CSV
+    CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        APELLIDOS VARCHAR(50), -- Se manejan cruzadas ya que el CSV tiene las columnas invertidas
+        ESPECIALIDAD VARCHAR(50),
+        NRO_COLEG VARCHAR(50)
+    );
 
-	SELECT ESPECIALIDAD
-	INTO #ESP_AUX
-	FROM #CSV_AUX;
+    -- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
 
-	SELECT *
-	INTO #CSV_AUX2
-	FROM #CSV_AUX A
-	WHERE NOT EXISTS (SELECT 1 FROM sede.Sede M INNER JOIN med.Especialidad E ON E.ID = M.ID WHERE LTRIM(A.APELLIDOS) = M.NOMBRE AND func.get_apellido_despues_de_punto(A.NOMBRE) = M.Nombre AND E.Nombre = A.ESPECIALIDAD);
+    -- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    BEGIN TRY
+        EXEC (@SQL);
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
 
-	SELECT * FROM #CSV_AUX2;
+    -- Insertar nuevas especialidades si no existen
+    INSERT INTO med.Especialidad(NOMBRE)
+    SELECT DISTINCT ESPECIALIDAD
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (SELECT 1 FROM med.Especialidad ES WHERE ES.NOMBRE = AUX.ESPECIALIDAD);
 
-	INSERT INTO med.Especialidad(NOMBRE)
-	SELECT DISTINCT ESPECIALIDAD
-	FROM #ESP_AUX AUX
-	WHERE NOT EXISTS (SELECT 1 FROM med.Especialidad ES WHERE ES.NOMBRE = AUX.ESPECIALIDAD);
-
-	INSERT INTO med.Medico(NOMBRE, APELLIDO, NroMatricula, IdEspecialidad) --COMO EN EL CSV EN APELLIDO PONEMOS EL NOMBRE ACA LO INVERTIMOS
-	SELECT LTRIM(A.APELLIDOS), func.get_apellido_despues_de_punto(A.NOMBRE), A.NRO_COLEG, E.ID
-	FROM #CSV_AUX2 A INNER JOIN med.Especialidad E ON A.ESPECIALIDAD = E.NOMBRE;
+    -- Insertar médicos desde el archivo CSV
+    INSERT INTO med.Medico(NOMBRE, APELLIDO, NroMatricula, IdEspecialidad)
+    SELECT LTRIM(A.APELLIDOS), UPPER(LEFT(func.get_apellido_despues_de_punto(A.NOMBRE), 1)) + LOWER(SUBSTRING(func.get_apellido_despues_de_punto(A.NOMBRE), 2, LEN(func.get_apellido_despues_de_punto(A.NOMBRE)))), A.NRO_COLEG, E.ID
+    FROM #CSV_AUX A 
+    INNER JOIN med.Especialidad E ON A.ESPECIALIDAD = E.NOMBRE;
 END
 GO
 
+
+
 exec med.ImportarMedicos 'E:\PruebaSQL\Medicos.csv' 
 GO
+
+-- Eliminar los datos de la tabla med.Medico
+DELETE FROM med.Medico;
+
+-- Eliminar los datos de la tabla med.Especialidad
+DELETE FROM med.Especialidad;
 
 select * from med.Medico ORDER BY Nombre
 select * from med.Especialidad
