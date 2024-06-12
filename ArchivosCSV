@@ -1,0 +1,96 @@
+--CARGAR CSV DE PRESTADORES
+CREATE OR ALTER PROCEDURE pte.ImportarPrestadores
+	@PATH VARCHAR(MAX) 
+AS
+BEGIN
+	SET NOCOUNT ON; -- Se utiliza para suprimir mensajes
+	
+	-- Crear una tabla temporal para almacenar los datos del CSV
+	CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        PLAN_PRESTADOR VARCHAR(50)
+    );
+
+	-- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
+	-- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    BEGIN TRY
+        EXEC (@SQL);
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
+
+	-- Corregir datos erroneos y/o incorrectos
+	UPDATE #CSV_AUX
+    SET PLAN_PRESTADOR = REPLACE(PLAN_PRESTADOR, ';;', ''),
+	NOMBRE = NOMBRE
+
+	-- Insertar nuevos prestadores si no existen
+    INSERT INTO pte.Prestador (Nombre, PlanPrestador)
+    SELECT DISTINCT NOMBRE, PLAN_PRESTADOR
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM pte.Prestador PRES 
+        WHERE PRES.Nombre = AUX.NOMBRE 
+          AND PRES.PlanPrestador = AUX.PLAN_PRESTADOR
+    );
+
+	drop table #CSV_AUX
+END
+
+exec pte.ImportarPrestadores 'D:\Dataset\Prestador.csv' 
+GO
+
+select * from pte.Prestador ORDER BY Nombre
+DELETE FROM pte.Prestador;
+
+
+--CARGAR CSV DE SEDES
+CREATE OR ALTER PROCEDURE sede.ImportarSedes
+	@PATH VARCHAR(MAX) 
+AS
+BEGIN
+	SET NOCOUNT ON; -- Se utiliza para suprimir mensajes
+	
+	-- Crear una tabla temporal para almacenar los datos del CSV
+	CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        DIRECCION VARCHAR(255),
+		LOCALIDAD VARCHAR(50),
+		PROVINCIA VARCHAR(50)
+    );
+
+	-- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
+	-- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    BEGIN TRY
+        EXEC (@SQL);
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
+
+	-- Insertar nuevos prestadores si no existen
+    INSERT INTO sede.Sede (Nombre, Direccion)
+    SELECT DISTINCT NOMBRE, DIRECCION
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM sede.Sede PRES 
+        WHERE PRES.Nombre = AUX.NOMBRE 
+          AND PRES.Direccion = AUX.DIRECCION
+    );
+	drop table #CSV_AUX
+END
+
+exec sede.ImportarSedes 'D:\Dataset\Sedes.csv' 
+GO
+
+select * from sede.Sede ORDER BY Nombre
+DELETE FROM sede.Sede;
