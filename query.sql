@@ -114,8 +114,8 @@ BEGIN
         Numero VARCHAR(10) NOT NULL,
         Piso VARCHAR(10),
         Departamento VARCHAR(10),
-        CodigoPostal VARCHAR(20) NOT NULL,
-        Pais VARCHAR(50) NOT NULL,
+        CodigoPostal VARCHAR(20),
+        Pais VARCHAR(50),
         Provincia VARCHAR(50) NOT NULL,
         Localidad VARCHAR(50) NOT NULL
     );
@@ -150,7 +150,9 @@ BEGIN
         NombreEstudio VARCHAR(100) NOT NULL,
         EstaAutorizado BIT NOT NULL,
         DocumentoResultado VARCHAR(50) NOT NULL,
-        ImagenResultado VARBINARY(MAX)
+        ImagenResultado VARBINARY(MAX),
+		IdPaciente INT,
+		CONSTRAINT FK_Estudio_Paciente FOREIGN KEY (IdPaciente) REFERENCES pte.paciente(ID)
     );
 END
 ELSE
@@ -178,15 +180,11 @@ BEGIN
         TelFijo VARCHAR(20),
         TelAlternativo VARCHAR(20),
         TelLaboral VARCHAR(20),
-        FechaRegistro DATE NOT NULL,
-        FechaActualizacion DATE NOT NULL,
-        UsuarioActualizacion VARCHAR(50) NOT NULL,
-        IdUsuario INT NOT NULL,
-        IdEstudio INT,
-        IdCobertura INT,
-        CONSTRAINT FK_Paciente_Usuario FOREIGN KEY (IdUsuario) REFERENCES pte.Usuario(ID),
-        CONSTRAINT FK_Paciente_Estudio FOREIGN KEY (IdEstudio) REFERENCES pte.Estudio(ID),
-        CONSTRAINT FK_Paciente_Cobertura FOREIGN KEY (IdCobertura) REFERENCES pte.Cobertura(ID)
+        FechaRegistro datetime default current_timestamp, -- NOT NULL,
+        FechaActualizacion datetime default current_timestamp , --NOT NULL
+        UsuarioActualizacion DATE,
+		IdDomicilio INT,
+		CONSTRAINT FK_Paciente_Domicilio FOREIGN KEY (IdDomicilio) REFERENCES pte.Domicilio(ID)
     );
 END
 ELSE
@@ -296,11 +294,13 @@ BEGIN
         ID INT IDENTITY(1,1) PRIMARY KEY,
         Fecha DATE NOT NULL,
         Hora TIME NOT NULL,
+		IdPaciente INT NOT NULL,
         IdMedico INT NOT NULL,
         IdEspecialidad INT NOT NULL,
         IdSede INT NOT NULL,
         IdEstadoTurno INT NOT NULL,
         IdTipoTurno INT NOT NULL,
+		CONSTRAINT FK_Reserva_Paciente FOREIGN KEY (IdPaciente) REFERENCES pte.Paciente(ID),
         CONSTRAINT FK_Reserva_Medico FOREIGN KEY (IdMedico) REFERENCES med.Medico(ID),
         CONSTRAINT FK_Reserva_Especialidad FOREIGN KEY (IdEspecialidad) REFERENCES med.Especialidad(ID),
         CONSTRAINT FK_Reserva_Sede FOREIGN KEY (IdSede) REFERENCES sede.Sede(ID),
@@ -995,3 +995,317 @@ DELETE FROM med.Especialidad;
 select * from med.Medico ORDER BY Nombre
 select * from med.Especialidad
 
+
+    
+--CARGAR CSV DE SEDES
+CREATE OR ALTER PROCEDURE sede.ImportarSedes
+	@PATH VARCHAR(MAX) 
+AS
+BEGIN
+	SET NOCOUNT ON; -- Se utiliza para suprimir mensajes
+	
+	-- Crear una tabla temporal para almacenar los datos del CSV
+	CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        DIRECCION VARCHAR(255),
+		LOCALIDAD VARCHAR(50),
+		PROVINCIA VARCHAR(50)
+    );
+
+	-- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
+	-- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    BEGIN TRY
+        EXEC (@SQL);
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
+
+	 -- Verificar y corregir datos incompletos o erróneos
+    UPDATE #CSV_AUX
+    SET NOMBRE = LTRIM(RTRIM(NOMBRE)),
+	DIRECCION = (DIRECCION + ', ' + LOCALIDAD + ', ' + PROVINCIA)
+
+	-- Insertar nuevas sedes si no existen
+    INSERT INTO sede.Sede (Nombre, Direccion)
+    SELECT DISTINCT NOMBRE, DIRECCION
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM sede.Sede PRES 
+        WHERE PRES.Nombre = AUX.NOMBRE 
+          AND PRES.Direccion = AUX.DIRECCION
+    );
+	drop table #CSV_AUX
+END
+
+exec sede.ImportarSedes 'D:\Dataset\Sedes.csv' 
+GO
+
+select * from sede.Sede ORDER BY Nombre
+DELETE FROM sede.Sede;
+
+
+--CARGAR CSV DE PRESTADORES
+CREATE OR ALTER PROCEDURE pte.ImportarPrestadores
+	@PATH VARCHAR(MAX) 
+AS
+BEGIN
+	SET NOCOUNT ON; -- Se utiliza para suprimir mensajes
+	
+	-- Crear una tabla temporal para almacenar los datos del CSV
+	CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        PLAN_PRESTADOR VARCHAR(50)
+    );
+
+	-- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
+	-- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    BEGIN TRY
+        EXEC (@SQL);
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
+
+	-- Corregir datos erroneos y/o incorrectos
+	UPDATE #CSV_AUX
+    SET PLAN_PRESTADOR = REPLACE(PLAN_PRESTADOR, ';;', ''),
+	NOMBRE = NOMBRE
+
+	-- Insertar nuevos prestadores si no existen
+    INSERT INTO pte.Prestador (Nombre, PlanPrestador)
+    SELECT DISTINCT NOMBRE, PLAN_PRESTADOR
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM pte.Prestador PRES 
+        WHERE PRES.Nombre = AUX.NOMBRE 
+          AND PRES.PlanPrestador = AUX.PLAN_PRESTADOR
+    );
+
+	drop table #CSV_AUX
+END
+
+exec pte.ImportarPrestadores 'D:\Dataset\Prestador.csv' 
+GO
+
+select * from pte.Prestador ORDER BY Nombre
+DELETE FROM pte.Prestador;
+
+
+--CARGAR CSV DE PACIENTES
+CREATE OR ALTER PROCEDURE pte.ImportarPacientes
+	@PATH VARCHAR(MAX) 
+AS
+BEGIN
+	SET NOCOUNT ON; -- Se utiliza para suprimir mensajes
+	-- Crear una tabla temporal para almacenar los datos del CSV
+	CREATE TABLE #CSV_AUX (
+        NOMBRE VARCHAR(50),
+        APELLIDOS VARCHAR(100),
+        FECHA_NAC VARCHAR(10),
+		TIPO_DOC VARCHAR(20),
+        NRO_DOC VARCHAR(20),
+		SEXO_BIOLOGICO VARCHAR(10),
+		GENERO VARCHAR(20),
+		TEL_FIJO VARCHAR(20),
+		NACIONALIDAD VARCHAR(50),
+		MAIL VARCHAR(50),
+		CALLE_NRO VARCHAR(255),
+		LOCALIDAD VARCHAR(50),
+		PROVINCIA VARCHAR(50)
+    );
+
+	-- Definir la consulta dinámica para la importación del archivo CSV
+    DECLARE @SQL VARCHAR(MAX) = 'BULK INSERT #CSV_AUX FROM ''' + @PATH + ''' WITH (FIELDTERMINATOR = '';'', ROWTERMINATOR = ''\n'', FIRSTROW = 2, CODEPAGE = ''65001'')';
+	-- Ejecutar la consulta dinámica para importar los datos del archivo CSV
+    
+	BEGIN TRY
+       EXEC (@SQL); 
+    END TRY
+    BEGIN CATCH
+        -- Manejar errores de importación
+        PRINT 'Error: No se pudo importar el archivo CSV.';
+        RETURN;
+    END CATCH
+
+
+	-- Añadir las nuevas columnas para apellido paterno y apellido materno
+	ALTER TABLE #CSV_AUX
+	ADD APELLIDO_PATERNO VARCHAR(50), 
+    APELLIDO_MATERNO VARCHAR(50);
+
+	UPDATE #CSV_AUX
+	SET APELLIDOS = LTRIM(APELLIDOS);
+
+	-- Actualizar las nuevas columnas separando el campo APELLIDOS
+    UPDATE #CSV_AUX
+    SET APELLIDO_PATERNO = CASE 
+                            WHEN APELLIDOS LIKE 'del %' THEN LEFT(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' ', CHARINDEX(' ', APELLIDOS + ' ') + 1) - 1)
+                            WHEN APELLIDOS LIKE 'de %' THEN LEFT(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' ', CHARINDEX(' ', APELLIDOS + ' ') + 1) - 1)
+                            ELSE LEFT(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' ') - 1)
+                        END,
+        APELLIDO_MATERNO = CASE 
+                                    WHEN APELLIDOS  LIKE 'del %' THEN SUBSTRING(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' ', CHARINDEX(' ', APELLIDOS + ' ') + 1), LEN(APELLIDOS))
+                                    WHEN APELLIDOS  LIKE 'de %' THEN SUBSTRING(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' ', CHARINDEX(' ', APELLIDOS + ' ') + 1), LEN(APELLIDOS))
+                                    ELSE SUBSTRING(APELLIDOS, CHARINDEX(' ', APELLIDOS + ' '), LEN(APELLIDOS))
+                                END;
+
+    -- Eliminar la columna original APELLIDOS
+    ALTER TABLE #CSV_AUX
+    DROP COLUMN APELLIDOS;
+
+    -- Actualizar la columna SEXO_BIOLOGICO
+    UPDATE #CSV_AUX
+    SET SEXO_BIOLOGICO = CONCAT(UPPER(LEFT(SEXO_BIOLOGICO, 1)), LOWER(SUBSTRING(SEXO_BIOLOGICO, 2, LEN(SEXO_BIOLOGICO) - 1)));
+
+    -- Actualizar la columna NACIONALIDAD
+    UPDATE #CSV_AUX
+    SET NACIONALIDAD = CONCAT(UPPER(LEFT(NACIONALIDAD, 1)), LOWER(SUBSTRING(NACIONALIDAD, 2, LEN(NACIONALIDAD) - 1)));
+
+	UPDATE #CSV_AUX
+    SET CALLE_NRO = CONCAT(UPPER(LEFT(CALLE_NRO, 1)), LOWER(SUBSTRING(CALLE_NRO, 2, LEN(CALLE_NRO) - 1)));
+
+    -- Agregar nuevas columnas para la calle y el número
+   -- Añadir las columnas CALLE y NUMERO
+	ALTER TABLE #CSV_AUX
+    ADD CALLE VARCHAR(255),
+        NUMERO VARCHAR(50);
+
+	-- Actualizar los valores de las nuevas columnas
+	UPDATE #CSV_AUX
+    SET 
+    NUMERO = ltrim(right(CALLE_NRO, PATINDEX('%[a-zA-Z.]%', REVERSE(rtrim(CALLE_NRO)))-1)),
+    CALLE = ltrim(left(CALLE_NRO, len(rtrim(CALLE_NRO)) - PATINDEX('%[ ]%', REVERSE(rtrim(CALLE_NRO)))))
+
+	-- Eliminar la columna original APELLIDOS
+    ALTER TABLE #CSV_AUX
+    DROP COLUMN CALLE_NRO;
+	
+
+	-- Limpiar espacios adicionales en las nuevas columnas
+	UPDATE #CSV_AUX
+	SET 
+    CALLE = LTRIM(RTRIM(CALLE)),
+    NUMERO = LTRIM(RTRIM(NUMERO));
+
+    -- Actualizar la columna CALLE
+    UPDATE #CSV_AUX
+    SET CALLE = CONCAT(UPPER(LEFT(CALLE, 1)), LOWER(SUBSTRING(CALLE, 2, LEN(CALLE) - 1)));
+
+    -- Actualizar la columna LOCALIDAD
+    UPDATE #CSV_AUX
+    SET LOCALIDAD = CONCAT(UPPER(LEFT(LOCALIDAD, 1)), LOWER(SUBSTRING(LOCALIDAD, 2, LEN(LOCALIDAD) - 1)));
+
+	SELECT *
+	FROM #CSV_AUX
+
+
+	-- Insertar los datos en la tabla Domicilio, verificando duplicados
+    INSERT INTO pte.Domicilio(Calle, Provincia, Localidad, Numero)
+    SELECT DISTINCT CALLE, PROVINCIA, LOCALIDAD, NUMERO 
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM pte.Domicilio 
+        WHERE 
+            AUX.CALLE = Calle AND 
+            AUX.LOCALIDAD = Localidad AND
+            AUX.PROVINCIA = Provincia AND
+            AUX.NUMERO = Numero
+    );
+
+    -- Insertar los datos en la tabla Paciente, verificando duplicados
+    INSERT INTO pte.Paciente(
+        Nombre, Apellido, ApellidoMaterno,
+        FechaNacimiento, TipoDoc, NumeroDoc, 
+        SexoBiologico, Genero, TelFijo, Nacionalidad, Mail, IdDomicilio)
+    SELECT 
+        NOMBRE, APELLIDO_PATERNO, APELLIDO_MATERNO, 
+        CONVERT(DATE, FECHA_NAC, 105), TIPO_DOC, CAST(NRO_DOC AS INT), 
+        SEXO_BIOLOGICO, GENERO, TEL_FIJO, NACIONALIDAD, MAIL, 
+        (SELECT ID 
+         FROM pte.Domicilio
+         WHERE 
+             AUX.CALLE = Calle AND 
+             AUX.LOCALIDAD = Localidad AND 
+             AUX.PROVINCIA = Provincia AND 
+             Numero = AUX.NUMERO)
+    FROM #CSV_AUX AUX
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM pte.Paciente 
+        WHERE 
+            AUX.TIPO_DOC = TipoDoc AND 
+            AUX.NRO_DOC = NumeroDoc
+    );
+
+	drop table #CSV_AUX
+END
+
+exec pte.ImportarPacientes 'D:\Dataset\Pacientes.csv'
+go
+
+select * from pte.Paciente ORDER BY Nombre
+select * from pte.Domicilio
+
+
+
+-- CARGAR JASON DE ESTUDIO
+CREATE OR ALTER PROCEDURE ImportarEstudioJSON @rutaArchivo VARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+-- Crea una tabla temporal para almacenar los datos JSON
+CREATE TABLE #TempJSONAux (
+    JSONData NVARCHAR(MAX)
+)
+
+-- Utiliza OPENROWSET para leer el archivo JSON y guardarlo en la tabla temporal
+INSERT INTO #TempJSONAux (JSONData)
+SELECT BulkColumn
+FROM OPENROWSET(BULK @rutaArchivo, SINGLE_CLOB) as j
+
+-- Utiliza OPENJSON para extraer los datos del JSON y guardarlos en una tabla permanente
+SELECT *
+INTO pte.Estudio
+FROM OPENJSON((SELECT JSONData FROM #TempJSONAux))
+WITH (
+      --- Aca deberia poner los campos de la tabla y su tipo de datos, pero no se uales poner porque el JSON viene diferente
+)
+
+-- Elimina la tabla temporal
+DROP TABLE #TempTable
+END
+
+
+-- Cargar archivo XML
+CREATE OR ALTER PROCEDURE turno.turnosAtendidosPorObraSocial @obra_social varchar(60), @fecha_ini date, @fecha_fin date AS
+BEGIN
+	BEGIN TRY
+		SELECT	Paciente.Apellido + ' ' + isnull(Paciente.ApellidoMaterno,'') AS Apellido_paciente, Paciente.Nombre Nombre_paciente, Paciente.TipoDoc Tipo_doc_paciente,
+		Paciente.NumeroDoc num_doc_paciente, Medico.Apellido Apellido_medico, Medico.Nombre Nombre_medico, Medico.NroMatricula Matricula_medico,
+		Especialidad.Nombre Especialidad_medico, Reserva.Fecha Fecha, Reserva.Hora Hora
+		FROM	pte.Prestador Prestador
+		INNER JOIN pte.Cobertura Cobertura ON Prestador.ID = Cobertura.IdPrestador
+		INNER JOIN pte.Paciente Paciente ON Paciente.ID = Cobertura.IdPaciente
+		INNER JOIN turno.Reserva Reserva ON Paciente.ID = Reserva.IdPaciente
+		INNER JOIN sede.Sede Sede ON Reserva.IdSede = Sede.ID
+		INNER JOIN sede.DiaSede DSede ON Sede.ID = DSede.IdSede
+		INNER JOIN med.Medico Medico ON Medico.ID = DSede.IdMedico
+		INNER JOIN med.Especialidad Especialidad ON Medico.IdEspecialidad = Especialidad.ID
+		WHERE	UPPER(Prestador.Nombre) = UPPER(@obra_social) AND @fecha_ini <= Reserva.Fecha AND Reserva.Fecha <= @fecha_fin
+		FOR XML AUTO, ROOT ('Turnos'), ELEMENTS XSINIL;
+	END TRY
+	BEGIN CATCH
+		PRINT 'Error al exportar el XML.';
+	END CATCH
+END
