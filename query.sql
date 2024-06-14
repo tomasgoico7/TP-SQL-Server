@@ -15,16 +15,7 @@ USE CURESA
 GO
 
 -- Crear esquemas si no existen
-IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'func')
-BEGIN
-    EXEC('CREATE SCHEMA func;');
-    PRINT 'El esquema func ha sido creado.';
-END
-ELSE
-BEGIN
-    PRINT 'El esquema func ya existe.';
-END
-GO
+
 
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'pte')
 BEGIN
@@ -96,13 +87,33 @@ BEGIN
         NroSocio VARCHAR(50) NOT NULL,
         FechaRegistro DATE NOT NULL,
         IdPrestador INT NOT NULL,
-        CONSTRAINT FK_Paciente_Prestador FOREIGN KEY (IdPrestador) REFERENCES pte.Prestador (ID)
+        IdPaciente INT NOT NULL,
+        CONSTRAINT FK_Cobertura_Prestador FOREIGN KEY (IdPrestador) REFERENCES pte.Prestador (ID),
+        CONSTRAINT FK_Cobertura_Paciente FOREIGN KEY (IdPaciente) REFERENCES pte.Paciente (ID)
     );
 END
 ELSE
 BEGIN 
-    PRINT('La tabla Cobertura ya existe.')
-END
+    PRINT('La tabla Cobertura ya existe.');
+END;
+GO
+
+
+--Creamos la tabla CostoEstudio
+IF OBJECT_ID(N'[Entidades].[CostoEstudio]', N'U') IS NULL 
+	CREATE TABLE pte.CostoEstudio (
+		ID INT IDENTITY(1,1) PRIMARY KEY,
+		IDPrestador INT,
+		IDArea INT,
+		Estudio varchar(200),
+		PorcentajeCobertura INT,
+		Costo DECIMAL(18, 2),
+		RequiereAutorizacion BIT,
+		CONSTRAINT FK_Prestador_CostoEstudio FOREIGN KEY (IDPrestador) REFERENCES pte.Prestador(ID),
+		CONSTRAINT FK_Area_CostoEstudio FOREIGN KEY (IDArea) REFERENCES turno.Area(ID)
+	);
+else
+    print 'Ya existe'
 go
 
 -- Crear tabla Domicilio
@@ -125,6 +136,18 @@ BEGIN
     PRINT('La tabla Domicilio ya existe.')
 END
 go
+
+--Creamos la tabla Area
+IF NOT EXISTS (SELECT * FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'Area' AND s.name = 'turno')
+BEGIN
+	CREATE TABLE turno.Area (
+		ID INT IDENTITY(1,1) PRIMARY KEY,
+		Nombre NVARCHAR(50) NOT NULL UNIQUE
+	);
+	END
+ELSE
+    PRINT('La tabla Area ya existe.')
+GO
 
 -- Crear tabla Usuario
 IF NOT EXISTS (SELECT * FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE t.name = 'Usuario' AND s.name = 'pte')
@@ -294,13 +317,13 @@ BEGIN
         ID INT IDENTITY(1,1) PRIMARY KEY,
         Fecha DATE NOT NULL,
         Hora TIME NOT NULL,
-		IdPaciente INT NOT NULL,
+        IdPaciente INT NOT NULL,
         IdMedico INT NOT NULL,
         IdEspecialidad INT NOT NULL,
         IdSede INT NOT NULL,
         IdEstadoTurno INT NOT NULL,
         IdTipoTurno INT NOT NULL,
-		CONSTRAINT FK_Reserva_Paciente FOREIGN KEY (IdPaciente) REFERENCES pte.Paciente(ID),
+        CONSTRAINT FK_Reserva_Paciente FOREIGN KEY (IdPaciente) REFERENCES pte.Paciente(ID),
         CONSTRAINT FK_Reserva_Medico FOREIGN KEY (IdMedico) REFERENCES med.Medico(ID),
         CONSTRAINT FK_Reserva_Especialidad FOREIGN KEY (IdEspecialidad) REFERENCES med.Especialidad(ID),
         CONSTRAINT FK_Reserva_Sede FOREIGN KEY (IdSede) REFERENCES sede.Sede(ID),
@@ -310,9 +333,10 @@ BEGIN
 END
 ELSE
 BEGIN 
-    PRINT('La tabla Reserva ya existe.')
-END
-go
+    PRINT('La tabla Reserva ya existe.');
+END;
+GO
+
 
 -- Código para eliminar tablas
 -- IF OBJECT_ID('pte.Cobertura', 'U') IS NOT NULL DROP TABLE pte.Cobertura;
@@ -561,9 +585,7 @@ BEGIN
 END
 GO
 
--- Procedimientos Almacenados para la tabla pte.Paciente
-
-
+-- Procedimiento para insertar un paciente
 CREATE OR ALTER PROCEDURE pte.InsertPaciente
     @Nombre VARCHAR(50),
     @Apellido VARCHAR(50),
@@ -579,20 +601,16 @@ CREATE OR ALTER PROCEDURE pte.InsertPaciente
     @TelFijo VARCHAR(20),
     @TelAlternativo VARCHAR(20),
     @TelLaboral VARCHAR(20),
-    @FechaRegistro DATE,
-    @FechaActualizacion DATE,
-    @UsuarioActualizacion VARCHAR(50),
-    @IdUsuario INT,
-    @IdEstudio INT,
-    @IdCobertura INT
+    @UsuarioActualizacion DATE,
+    @IdDomicilio INT
 AS
 BEGIN
-    INSERT INTO pte.Paciente (Nombre, Apellido, ApellidoMaterno, FechaNacimiento, TipoDoc, NumeroDoc, SexoBiologico, Genero, Nacionalidad, FotoPerfil, Mail, TelFijo, TelAlternativo, TelLaboral, FechaRegistro, FechaActualizacion, UsuarioActualizacion, IdUsuario, IdEstudio, IdCobertura)
-    VALUES (@Nombre, @Apellido, @ApellidoMaterno, @FechaNacimiento, @TipoDoc, @NumeroDoc, @SexoBiologico, @Genero, @Nacionalidad, @FotoPerfil, @Mail, @TelFijo, @TelAlternativo, @TelLaboral, @FechaRegistro, @FechaActualizacion, @UsuarioActualizacion, @IdUsuario, @IdEstudio, @IdCobertura);
+    INSERT INTO pte.Paciente (Nombre, Apellido, ApellidoMaterno, FechaNacimiento, TipoDoc, NumeroDoc, SexoBiologico, Genero, Nacionalidad, FotoPerfil, Mail, TelFijo, TelAlternativo, TelLaboral, UsuarioActualizacion, IdDomicilio)
+    VALUES (@Nombre, @Apellido, @ApellidoMaterno, @FechaNacimiento, @TipoDoc, @NumeroDoc, @SexoBiologico, @Genero, @Nacionalidad, @FotoPerfil, @Mail, @TelFijo, @TelAlternativo, @TelLaboral, @UsuarioActualizacion, @IdDomicilio);
 END
 GO
 
-
+-- Procedimiento para actualizar un paciente
 CREATE OR ALTER PROCEDURE pte.UpdatePaciente
     @ID INT,
     @Nombre VARCHAR(50),
@@ -609,12 +627,8 @@ CREATE OR ALTER PROCEDURE pte.UpdatePaciente
     @TelFijo VARCHAR(20),
     @TelAlternativo VARCHAR(20),
     @TelLaboral VARCHAR(20),
-    @FechaRegistro DATE,
-    @FechaActualizacion DATE,
-    @UsuarioActualizacion VARCHAR(50),
-    @IdUsuario INT,
-    @IdEstudio INT,
-    @IdCobertura INT
+    @UsuarioActualizacion DATE,
+    @IdDomicilio INT
 AS
 BEGIN
     UPDATE pte.Paciente
@@ -632,17 +646,14 @@ BEGIN
         TelFijo = @TelFijo,
         TelAlternativo = @TelAlternativo,
         TelLaboral = @TelLaboral,
-        FechaRegistro = @FechaRegistro,
-        FechaActualizacion = @FechaActualizacion,
+        FechaActualizacion = CURRENT_TIMESTAMP,
         UsuarioActualizacion = @UsuarioActualizacion,
-        IdUsuario = @IdUsuario,
-        IdEstudio = @IdEstudio,
-        IdCobertura = @IdCobertura
+        IdDomicilio = @IdDomicilio
     WHERE ID = @ID;
 END
 GO
 
-
+-- Procedimiento para eliminar un paciente
 CREATE OR ALTER PROCEDURE pte.DeletePaciente
     @ID INT
 AS
@@ -651,6 +662,7 @@ BEGIN
     WHERE ID = @ID;
 END
 GO
+
 
 -- Procedimientos Almacenados para la tabla med.Especialidad
 
@@ -929,17 +941,8 @@ BEGIN
 END
 GO
 
---FUNCIONES
-CREATE FUNCTION func.get_apellido_despues_de_punto(@str VARCHAR(255))
-RETURNS VARCHAR(255) AS
-BEGIN
-    RETURN LTRIM(SUBSTRING(@str, CHARINDEX('.', @str) + 1, LEN(@str)))
-END
-GO
 
-
-
---CARGAR CSV DE MEDICOS
+-- CARGAR CSV DE MEDICOS
 CREATE OR ALTER PROCEDURE med.ImportarMedicos 
     @PATH VARCHAR(MAX) 
 AS
@@ -975,15 +978,24 @@ BEGIN
 
     -- Insertar médicos desde el archivo CSV
     INSERT INTO med.Medico(NOMBRE, APELLIDO, NroMatricula, IdEspecialidad)
-    SELECT LTRIM(A.APELLIDOS), UPPER(LEFT(func.get_apellido_despues_de_punto(A.NOMBRE), 1)) + LOWER(SUBSTRING(func.get_apellido_despues_de_punto(A.NOMBRE), 2, LEN(func.get_apellido_despues_de_punto(A.NOMBRE)))), A.NRO_COLEG, E.ID
+    SELECT 
+        LTRIM(A.APELLIDOS), 
+        UPPER(LEFT(LTRIM(SUBSTRING(A.NOMBRE, CHARINDEX('.', A.NOMBRE) + 1, LEN(A.NOMBRE))), 1)) + 
+        LOWER(SUBSTRING(LTRIM(SUBSTRING(A.NOMBRE, CHARINDEX('.', A.NOMBRE) + 1, LEN(A.NOMBRE))), 2, LEN(LTRIM(SUBSTRING(A.NOMBRE, CHARINDEX('.', A.NOMBRE) + 1, LEN(A.NOMBRE)))))),
+        A.NRO_COLEG, 
+        E.ID
     FROM #CSV_AUX A 
     INNER JOIN med.Especialidad E ON A.ESPECIALIDAD = E.NOMBRE;
+
+    -- Limpiar la tabla temporal
+    DROP TABLE #CSV_AUX;
 END
 GO
 
 
 
-exec med.ImportarMedicos 'E:\PruebaSQL\Medicos.csv' 
+
+exec med.ImportarMedicos 'C:\PruebaSQL\Medicos.csv' 
 GO
 
 -- Eliminar los datos de la tabla med.Medico
@@ -1026,8 +1038,7 @@ BEGIN
 
 	 -- Verificar y corregir datos incompletos o erróneos
     UPDATE #CSV_AUX
-    SET NOMBRE = LTRIM(RTRIM(NOMBRE)),
-	DIRECCION = (DIRECCION + ', ' + LOCALIDAD + ', ' + PROVINCIA)
+    SET NOMBRE = LTRIM(RTRIM(NOMBRE))
 
 	-- Insertar nuevas sedes si no existen
     INSERT INTO sede.Sede (Nombre, Direccion)
@@ -1042,7 +1053,7 @@ BEGIN
 	drop table #CSV_AUX
 END
 
-exec sede.ImportarSedes 'D:\Dataset\Sedes.csv' 
+exec sede.ImportarSedes 'C:\PruebaSQL\Sedes.csv' 
 GO
 
 select * from sede.Sede ORDER BY Nombre
@@ -1093,7 +1104,7 @@ BEGIN
 	drop table #CSV_AUX
 END
 
-exec pte.ImportarPrestadores 'D:\Dataset\Prestador.csv' 
+exec pte.ImportarPrestadores 'C:\PruebaSQL\Prestador.csv' 
 GO
 
 select * from pte.Prestador ORDER BY Nombre
@@ -1250,45 +1261,128 @@ BEGIN
 	drop table #CSV_AUX
 END
 
-exec pte.ImportarPacientes 'D:\Dataset\Pacientes.csv'
+exec pte.ImportarPacientes 'C:\PruebaSQL\Pacientes.csv'
 go
 
 select * from pte.Paciente ORDER BY Nombre
 select * from pte.Domicilio
 
+--ARREGLAR LA FUNCION EN EL IMPORT DE MEDICOS
 
 
--- CARGAR JASON DE ESTUDIO
-CREATE OR ALTER PROCEDURE ImportarEstudioJSON @rutaArchivo VARCHAR(500)
+
+-- CARGAR JSON DE ESTUDIO
+CREATE OR ALTER PROCEDURE pte.ImportarCostoEstudio
+(
+    @Path NVARCHAR(MAX)
+)
 AS
 BEGIN
-    SET NOCOUNT ON;
+    
+    -- Crear tabla temporal
+    CREATE TABLE #TempEstudios (
+        Area NVARCHAR(200),
+        Estudio NVARCHAR(500),
+        Prestador NVARCHAR(50),
+        nombre_plan NVARCHAR(50),
+        PorcentajeCobertura INT,
+        Costo INT,
+        RequiereAutorizacion BIT
+    );
+    
+    -- Declarar variable para almacenar el JSON
+    DECLARE @JSONData NVARCHAR(MAX);
 
--- Crea una tabla temporal para almacenar los datos JSON
-CREATE TABLE #TempJSONAux (
-    JSONData NVARCHAR(MAX)
-)
+    -- Borrar cualquier dato previo en la tabla temporal
+    DELETE FROM #TempEstudios;
+    
+    -- Crear tabla temporal para almacenar el JSON cargado
+    CREATE TABLE #AllJson (textoJson NVARCHAR(MAX));
 
--- Utiliza OPENROWSET para leer el archivo JSON y guardarlo en la tabla temporal
-INSERT INTO #TempJSONAux (JSONData)
-SELECT BulkColumn
-FROM OPENROWSET(BULK @rutaArchivo, SINGLE_CLOB) as j
+    -- Construir comando BULK INSERT
+    DECLARE @BuldedJson NVARCHAR(MAX) = 'BULK INSERT #AllJson FROM ''' + @Path + ''' WITH (CODEPAGE = ''65001'')';
+    
+    -- Ejecutar BULK INSERT
+    EXEC (@BuldedJson);
 
--- Utiliza OPENJSON para extraer los datos del JSON y guardarlos en una tabla permanente
-SELECT *
-INTO pte.Estudio
-FROM OPENJSON((SELECT JSONData FROM #TempJSONAux))
-WITH (
-      --- Aca deberia poner los campos de la tabla y su tipo de datos, pero no se uales poner porque el JSON viene diferente
-)
+    -- Obtener JSON desde la tabla temporal
+    DECLARE @json NVARCHAR(MAX) = (SELECT TOP 1 textoJson FROM #AllJson);
+    
+    -- Eliminar tabla temporal para JSON
+    DROP TABLE #AllJson;
 
--- Elimina la tabla temporal
-DROP TABLE #TempTable
-END
+    -- Formatear cadena JSON
+    SET @json = REPLACE(REPLACE(REPLACE(REPLACE(@json, 'Porcentaje Cobertura', 'PorcentajeCobertura'), 'Requiere autorizacion', 'RequiereAutorizacion'), 'true', '1'), 'false', '0');
+
+    -- Insertar datos en la tabla temporal
+    INSERT INTO #TempEstudios (Area, Estudio, Prestador, nombre_plan, PorcentajeCobertura, Costo, RequiereAutorizacion)
+    SELECT Area, Estudio, Prestador, nombre_plan, PorcentajeCobertura, Costo, RequiereAutorizacion
+    FROM OPENJSON(@json)    
+    WITH (
+        Area NVARCHAR(200) '$.Area',
+        Estudio NVARCHAR(500) '$.Estudio',
+        Prestador NVARCHAR(50) '$.Prestador',
+        nombre_plan NVARCHAR(50) '$.Plan',
+        PorcentajeCobertura INT '$.PorcentajeCobertura',
+        Costo INT '$.Costo',
+        RequiereAutorizacion BIT '$.RequiereAutorizacion'
+    )
+    WHERE Costo IS NOT NULL;
+
+    -- Insertar nuevas áreas en la tabla Area
+    INSERT INTO turno.Area (Nombre)
+    SELECT DISTINCT Area
+    FROM #TempEstudios AS Temp
+    WHERE Area IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM turno.Area 
+        WHERE Nombre = Temp.Area
+    );
+
+    -- Insertar nuevos prestadores en la tabla Prestador
+    INSERT INTO pte.Prestador (Nombre, PlanPrestador)
+    SELECT DISTINCT Prestador, nombre_plan
+    FROM #TempEstudios AS Temp
+    WHERE Prestador IS NOT NULL AND nombre_plan IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM pte.Prestador 
+        WHERE Nombre = Temp.Prestador
+        AND PlanPrestador = Temp.nombre_plan
+    );
+
+    -- Insertar los datos en la tabla CostoEstudio
+    INSERT INTO pte.CostoEstudio (IDArea, Estudio, IDPrestador, PorcentajeCobertura, Costo, RequiereAutorizacion)
+    SELECT 
+        Ar.ID,
+        Temp.Estudio,
+        Pr.ID,
+        Temp.PorcentajeCobertura,
+        Temp.Costo,
+        Temp.RequiereAutorizacion
+    FROM #TempEstudios Temp
+    JOIN turno.Area Ar ON Temp.Area = Ar.Nombre
+    JOIN pte.Prestador Pr ON Temp.Prestador = Pr.Nombre AND Temp.nombre_plan = Pr.PlanPrestador;
+
+    -- Eliminar la tabla temporal
+    DROP TABLE #TempEstudios;
+END;
+GO
+
+-- Ejecutar procedimiento almacenado
+EXEC pte.ImportarCostoEstudio 'E:\PruebaSQL\Centro_Autorizaciones.Estudios clinicos.json';
+GO
+
+select * from pte.CostoEstudio
+select * from pte.Prestador
+select * from turno.area
+
+
+
+
 
 
 -- Cargar archivo XML
-CREATE OR ALTER PROCEDURE turno.turnosAtendidosPorObraSocial @obra_social varchar(60), @fecha_ini date, @fecha_fin date AS
+CREATE OR ALTER PROCEDURE turno.turnosAtendidosPorObraSocial (@obra_social varchar(60), @fecha_ini date, @fecha_fin date) AS
 BEGIN
 	BEGIN TRY
 		SELECT	Paciente.Apellido + ' ' + isnull(Paciente.ApellidoMaterno,'') AS Apellido_paciente, Paciente.Nombre Nombre_paciente, Paciente.TipoDoc Tipo_doc_paciente,
@@ -1303,9 +1397,13 @@ BEGIN
 		INNER JOIN med.Medico Medico ON Medico.ID = DSede.IdMedico
 		INNER JOIN med.Especialidad Especialidad ON Medico.IdEspecialidad = Especialidad.ID
 		WHERE	UPPER(Prestador.Nombre) = UPPER(@obra_social) AND @fecha_ini <= Reserva.Fecha AND Reserva.Fecha <= @fecha_fin
-		FOR XML AUTO, ROOT ('Turnos'), ELEMENTS XSINIL;
+		FOR XML AUTO, ELEMENTS XSINIL, ROOT ('Turnos');
 	END TRY
 	BEGIN CATCH
 		PRINT 'Error al exportar el XML.';
-	END CATCH
+	END CATCH
 END
+
+EXEC turno.turnosAtendidosPorObraSocial 'OSPOCE', '2024-01-01', '2024-12-31';
+GO
+
